@@ -22,12 +22,14 @@
 
 
 
+import os
 import subprocess
 import socket
+import sys
 import time
 
-squid_cmd = 'sudo docker run --net host jpetazzo/squid-in-a-can'
-redirect_cmd = 'sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to 3129 -w'
+squid_cmd = 'docker run --net host jpetazzo/squid-in-a-can'
+redirect_cmd = 'iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to 3129 -w'
 remove_redirect_cmd = redirect_cmd.replace(' -A ', ' -D ')
 
 LOCAL_PORT=3128
@@ -53,6 +55,9 @@ class RedirectContext:
 
 
 def main():
+    if os.geteuid() != 0:
+        print("This must be run as root, aborting")
+        return -1
     # Start the docker instance as a subprocess
     squid_in_a_can = subprocess.Popen(squid_cmd, shell=True)
 
@@ -78,6 +83,7 @@ def main():
 
     squid_in_a_can.poll()
     print("Docker process exited with return code %s" % squid_in_a_can.returncode)
+    return squid_in_a_can.returncode
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())

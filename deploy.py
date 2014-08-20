@@ -28,7 +28,8 @@ import socket
 import sys
 import time
 
-squid_cmd = 'docker run --net host jpetazzo/squid-in-a-can'
+build_cmd = 'docker build -t local-squid-in-a-can .'
+squid_cmd = 'docker run --net host local-squid-in-a-can'
 redirect_cmd = 'iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to 3129 -w'
 remove_redirect_cmd = redirect_cmd.replace(' -A ', ' -D ')
 
@@ -58,6 +59,9 @@ def main():
     if os.geteuid() != 0:
         print("This must be run as root, aborting")
         return -1
+    # build the docker instance as a subprocess
+    subprocess.check_call(build_cmd, shell=True)
+
     # Start the docker instance as a subprocess
     squid_in_a_can = subprocess.Popen(squid_cmd, shell=True)
 

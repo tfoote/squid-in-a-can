@@ -27,6 +27,7 @@ import socket
 import sys
 import time
 
+prepare_cache_cmd = "chown -R proxy:proxy /var/cache/squid3"
 build_cmd = "squid3 -z"
 squid_cmd = "squid3 -N"
 redirect_cmd = "iptables -t nat -A PREROUTING -p tcp" \
@@ -47,12 +48,19 @@ class RedirectContext:
     after they are inserted."""
     def __enter__(self):
         print("Enabling IPtables forwarding: '%s'" % redirect_cmd)
-        subprocess.check_call(redirect_cmd.split())
+        try:
+            subprocess.check_call(redirect_cmd.split())
+            self.setup = True
+        except:
+            print("Failed to setup IPTABLES. Did you use --privileged"
+                  " if not you need to run [[%s]]" % redirect_cmd)
+            self.setup = False
         return self
 
     def __exit__(self, type, value, traceback):
-        print("Disabling IPtables forwarding: '%s'" % remove_redirect_cmd)
-        subprocess.check_call(remove_redirect_cmd.split())
+        if self.setup:
+            print("Disabling IPtables forwarding: '%s'" % remove_redirect_cmd)
+            subprocess.check_call(remove_redirect_cmd.split())
 
 
 def main():
@@ -72,6 +80,8 @@ def main():
                       disk_cache_size)
 
     # Setup squid directories
+    # Reassert permissions in case of mounting from outside
+    subprocess.check_call(prepare_cache_cmd, shell=True)
     subprocess.check_call(build_cmd, shell=True)
 
     # wait for the above non-blockin call to finish setting up the directories
